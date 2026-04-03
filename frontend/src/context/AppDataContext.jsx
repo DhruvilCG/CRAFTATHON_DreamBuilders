@@ -5,6 +5,7 @@ import {
   fetchStats,
   simulateTraffic,
 } from '../services/api';
+import { useAuth } from './AuthContext.jsx';
 
 const AppDataContext = createContext(null);
 
@@ -31,6 +32,7 @@ function severityRank(level) {
 }
 
 export function AppDataProvider({ children }) {
+  const { user } = useAuth();
   const lastAlertIdRef = useRef(null);
   const lastLiveIdRef = useRef(null);
   const liveTrafficRef = useRef([]);
@@ -135,6 +137,12 @@ export function AppDataProvider({ children }) {
   }, []);
 
   const refreshData = useCallback(async ({ silent = true } = {}) => {
+    // Only fetch data if user is logged in
+    if (!user?.token) {
+      setLoading(false);
+      return;
+    }
+
     if (!isTrackingLive) return; // Skip refresh if tracking paused
 
     if (!silent) {
@@ -193,18 +201,20 @@ export function AppDataProvider({ children }) {
   }, [refreshData]);
 
   useEffect(() => {
-    refreshData({ silent: false });
-  }, [refreshData]);
+    if (user?.token) {
+      refreshData({ silent: false });
+    }
+  }, [user?.token, refreshData]);
 
   useEffect(() => {
-    if (!isTrackingLive) return; // Don't set interval when tracking paused
+    if (!user?.token || !isTrackingLive) return; // Don't set interval if not logged in or tracking paused
 
     const timer = setInterval(() => {
       refreshData();
     }, Math.max(1, Number(settings.refreshInterval) || 5) * 1000);
 
     return () => clearInterval(timer);
-  }, [refreshData, settings.refreshInterval, isTrackingLive]);
+  }, [user?.token, refreshData, settings.refreshInterval, isTrackingLive]);
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));

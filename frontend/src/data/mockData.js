@@ -1,7 +1,7 @@
 export const mockUsers = [
   { id: 'u1', name: 'Col. Aryan Singh', email: 'admin@mil.local', role: 'Admin', password: 'admin123' },
-  { id: 'u2', name: 'Analyst Meera', email: 'analyst@mil.local', role: 'Analyst', password: 'analyst123' },
-  { id: 'u3', name: 'Operator Kabir', email: 'operator@mil.local', role: 'Operator', password: 'operator123' },
+  { id: 'u2', name: 'Dr. Meera Sharma', email: 'analyst@mil.local', role: 'Analyst', password: 'analyst123' },
+  { id: 'u3', name: 'Operator Kabir', email: 'monitor@mil.local', role: 'Monitor', password: 'monitor123' },
 ];
 
 export const seedTrafficSeries = [

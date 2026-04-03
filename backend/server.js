@@ -6,6 +6,14 @@ const connectDB = require('./config/db');
 // Load environment variables
 dotenv.config();
 
+// Verify JWT_SECRET is loaded
+if (!process.env.JWT_SECRET) {
+    console.warn('⚠️  JWT_SECRET not set in .env, using fallback: supersecretkey');
+    process.env.JWT_SECRET = 'supersecretkey';
+} else {
+    console.log('✓ JWT_SECRET loaded from environment');
+}
+
 // Connect to Database
 connectDB();
 
