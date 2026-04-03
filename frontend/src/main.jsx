@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { AppDataProvider } from './context/AppDataContext.jsx';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -12,7 +13,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     React.createElement(
       BrowserRouter,
       null,
-      React.createElement(AuthProvider, null, React.createElement(App))
+      React.createElement(
+        AuthProvider,
+        null,
+        React.createElement(AppDataProvider, null, React.createElement(App))
+      )
     )
   )
 );
