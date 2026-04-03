@@ -1,41 +1,25 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { canAccessPage } from '../../utils/rolePermissions.js';
 
-const navByRole = {
-  Admin: [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/monitoring', label: 'Real-Time Monitoring' },
-    { to: '/alerts', label: 'Alerts' },
-    { to: '/network', label: 'Network Graph' },
-    { to: '/logs', label: 'Logs' },
-    { to: '/simulation', label: 'Attack Simulation' },
-    { to: '/users', label: 'User Management' },
-    { to: '/settings', label: 'Settings' },
-  ],
-  Analyst: [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/monitoring', label: 'Real-Time Monitoring' },
-    { to: '/alerts', label: 'Alerts' },
-    { to: '/network', label: 'Network Graph' },
-    { to: '/logs', label: 'Logs' },
-    { to: '/simulation', label: 'Attack Simulation' },
-    { to: '/settings', label: 'Settings' },
-  ],
-  Operator: [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/monitoring', label: 'Real-Time Monitoring' },
-    { to: '/alerts', label: 'Alerts' },
-    { to: '/network', label: 'Network Graph' },
-    { to: '/logs', label: 'Logs' },
-    { to: '/settings', label: 'Settings' },
-  ],
-};
+const allNavItems = [
+  { to: '/dashboard', label: 'Dashboard', page: 'dashboard' },
+  { to: '/monitoring', label: 'Real-Time Monitoring', page: 'monitoring' },
+  { to: '/alerts', label: 'Alerts', page: 'alerts' },
+  { to: '/network', label: 'Network Graph', page: 'network' },
+  { to: '/logs', label: 'Logs', page: 'logs' },
+  { to: '/simulation', label: 'Attack Simulation', page: 'simulation' },
+  { to: '/users', label: 'User Management', page: 'users' },
+  { to: '/settings', label: 'Settings', page: 'settings' },
+];
 
 export default function Sidebar({ open, setOpen }) {
   const { user } = useAuth();
-  const role = user?.role || 'Operator';
-  const links = navByRole[role] || navByRole.Operator;
+  const role = user?.role || 'Monitor';
+
+  // Filter nav items based on user role
+  const links = allNavItems.filter((item) => canAccessPage(role, item.page));
 
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`}>
