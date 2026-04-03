@@ -89,10 +89,12 @@ export default function NetworkGraph({ traffic = [] }) {
         <h2>Communication Network Graph</h2>
       </div>
       <div className="network-wrapper">
-        <ReactFlow nodes={nodes} edges={edges} fitView>
-          <Background color="#324740" gap={20} />
-          <Controls />
-        </ReactFlow>
+        <div className="network-canvas">
+          <ReactFlow nodes={nodes} edges={edges} fitView>
+            <Background color="#324740" gap={20} />
+            <Controls />
+          </ReactFlow>
+        </div>
       </div>
     </section>
   );
