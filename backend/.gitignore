@@ -1,0 +1,10 @@
+node_modules
+
+# Local env
+.env
+
+# Python cache and model artifacts
+ml_service/__pycache__/
+ml_service/*.pyc
+ml_service/*.pyo
+ml_service/model.pkl
