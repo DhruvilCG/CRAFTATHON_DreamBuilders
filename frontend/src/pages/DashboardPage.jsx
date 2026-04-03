@@ -37,6 +37,12 @@ export default function DashboardPage() {
     ? Math.round((stats.anomalies / stats.totalTraffic) * 100)
     : 0;
 
+  const threatLookup = Object.fromEntries((stats.threatCategoryCounts || []).map((item) => [item._id, item.count]));
+  const jammingEvents = threatLookup.Jamming || 0;
+  const spoofingEvents = threatLookup.Spoofing || 0;
+  const intrusionEvents = threatLookup.Intrusion || 0;
+  const mixedEvents = threatLookup.Mixed || 0;
+
   const pieData = [
     { name: 'Normal', value: stats.normalTraffic },
     { name: 'Attack', value: stats.attackTraffic },
@@ -65,6 +71,7 @@ export default function DashboardPage() {
         <div className="dashboard-hero-badges">
           <span className="hero-badge">Detection Rate: {detectionRate}%</span>
           <span className="hero-badge">Threat Level: {stats.attackPercent}%</span>
+          <span className="hero-badge">Signal: {stats.signalStatus}</span>
           <span className={`hero-badge hero-status ${statusClass(stats.systemStatus)}`}>{stats.systemStatus}</span>
         </div>
       </section>
@@ -93,6 +100,31 @@ export default function DashboardPage() {
         <article className="stat-card metric-card metric-safe">
           <p className="stat-label">Detection Rate</p>
           <h3>{detectionRate}%</h3>
+        </article>
+        <article className="stat-card metric-card">
+          <p className="stat-label">Signal Availability</p>
+          <h3>{stats.signalHealth?.availability ?? 100}%</h3>
+          <p className="metric-subtext">communication uptime estimate</p>
+        </article>
+        <article className="stat-card metric-card">
+          <p className="stat-label">Signal Integrity</p>
+          <h3>{stats.signalHealth?.integrity ?? 100}%</h3>
+          <p className="metric-subtext">tamper resistance estimate</p>
+        </article>
+        <article className="stat-card metric-card">
+          <p className="stat-label">Jamming Risk</p>
+          <h3>{stats.signalHealth?.jammingRisk ?? 0}%</h3>
+          <p className="metric-subtext">EW disruption pressure</p>
+        </article>
+        <article className="stat-card metric-card">
+          <p className="stat-label">Spoofing Risk</p>
+          <h3>{stats.signalHealth?.spoofingRisk ?? 0}%</h3>
+          <p className="metric-subtext">identity manipulation pressure</p>
+        </article>
+        <article className="stat-card metric-card">
+          <p className="stat-label">Intrusion Risk</p>
+          <h3>{stats.signalHealth?.intrusionRisk ?? 0}%</h3>
+          <p className="metric-subtext">unauthorized access pressure</p>
         </article>
       </section>
 
@@ -140,6 +172,36 @@ export default function DashboardPage() {
               <div className="footnote-safe">Normal: {stats.normalTraffic}</div>
               <div className="footnote-danger">Attack: {stats.attackTraffic}</div>
             </div>
+          </div>
+        </article>
+
+        <article className="chart-card dashboard-chart-card">
+          <div className="chart-head">
+            <h3>Threat Pattern Breakdown</h3>
+            <span>Jamming / Spoofing / Intrusion / Mixed</span>
+          </div>
+          <div className="chart-body dashboard-chart-lg" style={{ height: 220 }}>
+            <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+              <article className="stat-card">
+                <p className="stat-label">Jamming</p>
+                <h3>{jammingEvents}</h3>
+              </article>
+              <article className="stat-card">
+                <p className="stat-label">Spoofing</p>
+                <h3>{spoofingEvents}</h3>
+              </article>
+              <article className="stat-card">
+                <p className="stat-label">Intrusion</p>
+                <h3>{intrusionEvents}</h3>
+              </article>
+              <article className="stat-card">
+                <p className="stat-label">Mixed</p>
+                <h3>{mixedEvents}</h3>
+              </article>
+            </div>
+            <p style={{ marginTop: 12, color: 'var(--txt-dim)', fontSize: 13 }}>
+              Anomaly rate in current window: {stats.anomalyRate ?? detectionRate}%
+            </p>
           </div>
         </article>
       </section>

@@ -28,6 +28,8 @@ export default function MonitoringPage() {
     packetSize: item.packetSize,
   }));
 
+  const latestSignal = liveTraffic[0] || null;
+
   return (
     <div className="page-stack">
       {error ? <div className="error-box">{error}</div> : null}
@@ -38,6 +40,11 @@ export default function MonitoringPage() {
           <div style={{ fontSize: 12, color: 'var(--txt-dim)', marginTop: 4 }}>
             {isTrackingLive ? '🟢 Tracking ACTIVE' : '🔴 Tracking PAUSED'}
           </div>
+          {latestSignal ? (
+            <div style={{ fontSize: 12, color: 'var(--txt-dim)', marginTop: 4 }}>
+              Availability {latestSignal.signalAvailability ?? '-'}% | Integrity {latestSignal.signalIntegrity ?? '-'}% | Threat {latestSignal.threatCategory || 'None'}
+            </div>
+          ) : null}
         </div>
         <button
           onClick={() => setIsTrackingLive(!isTrackingLive)}
@@ -83,12 +90,15 @@ export default function MonitoringPage() {
                 <th>Packet Size</th>
                 <th>Time</th>
                 <th>Status</th>
+                <th>Threat Category</th>
+                <th>Availability</th>
+                <th>Integrity</th>
               </tr>
             </thead>
             <tbody>
               {loading && liveTraffic.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ color: 'var(--txt-dim)' }}>Loading real-time data...</td>
+                  <td colSpan={9} style={{ color: 'var(--txt-dim)' }}>Loading real-time data...</td>
                 </tr>
               ) : liveTraffic.map((item, index) => (
                 <tr key={item._id || item.id || `${item.source}-${item.destination}-${item.timestamp || index}`}>
@@ -98,6 +108,9 @@ export default function MonitoringPage() {
                   <td>{item.packetSize}</td>
                   <td>{new Date(item.timestamp || Date.now()).toLocaleTimeString([], { hour12: false })}</td>
                   <td className={rowStatus(item.status)}>{item.status}</td>
+                  <td>{item.threatCategory || 'None'}</td>
+                  <td>{item.signalAvailability ?? '-'}</td>
+                  <td>{item.signalIntegrity ?? '-'}</td>
                 </tr>
               ))}
             </tbody>

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
   fetchAlerts,
   fetchLiveTraffic,
+  fetchSignalStatus,
   fetchStats,
   simulateTraffic,
 } from '../services/api';
@@ -42,6 +43,7 @@ export function AppDataProvider({ children }) {
   const [rawAlerts, setRawAlerts] = useState([]);
   const [logs, setLogs] = useState(storedTraffic);
   const [statsApi, setStatsApi] = useState(null);
+  const [signalStatusApi, setSignalStatusApi] = useState(null);
   const [users, setUsers] = useState([]);
   const [isTrackingLive, setIsTrackingLive] = useState(true);
   const [recentAlerts, setRecentAlerts] = useState([]);
@@ -95,8 +97,19 @@ export function AppDataProvider({ children }) {
       systemStatus,
       normalTraffic: latest.normal,
       attackTraffic: latest.attack,
+      signalHealth: statsApi?.signalHealth || {
+        availability: signalStatusApi?.availability ?? 100,
+        integrity: signalStatusApi?.integrity ?? 100,
+        jammingRisk: signalStatusApi?.maxJammingRisk ?? 0,
+        spoofingRisk: signalStatusApi?.maxSpoofingRisk ?? 0,
+        intrusionRisk: signalStatusApi?.maxIntrusionRisk ?? 0,
+      },
+      signalStatus: signalStatusApi?.signalStatus || 'Nominal',
+      anomalyRate: signalStatusApi?.anomalyRate ?? attackPercent,
+      threatCategoryCounts: statsApi?.threatCategoryCounts || [],
+      datasetCoverage: statsApi?.datasetCoverage || [],
     };
-  }, [logs, statsApi, trafficSeries]);
+  }, [logs, signalStatusApi, statsApi, trafficSeries]);
 
   const pushNotification = (message, severity = 'Medium') => {
     const id = makeId('ntf');
@@ -150,15 +163,17 @@ export function AppDataProvider({ children }) {
     }
 
     try {
-      const [liveRow, alertRows, statsRows] = await Promise.all([
+      const [liveRow, alertRows, statsRows, signalRows] = await Promise.all([
         fetchLiveTraffic(),
         fetchAlerts(),
         fetchStats(),
+        fetchSignalStatus(),
       ]);
 
       setError('');
       setRawAlerts(alertRows || []);
       setStatsApi(statsRows || null);
+      setSignalStatusApi(signalRows || null);
 
       if (liveRow && liveRow._id !== lastLiveIdRef.current) {
         lastLiveIdRef.current = liveRow._id;

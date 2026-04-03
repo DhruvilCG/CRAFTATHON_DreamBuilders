@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import ShareLogsPanel from '../components/ShareLogsPanel.jsx';
 import { useAppData } from '../context/AppDataContext.jsx';
 
 export default function LogsPage() {
@@ -6,6 +7,7 @@ export default function LogsPage() {
   const [query, setQuery] = useState('');
   const [date, setDate] = useState('');
   const [attackType, setAttackType] = useState('All');
+  const [shareOpen, setShareOpen] = useState(false);
 
   const rows = useMemo(() => {
     return logs.filter((item) => {
@@ -32,8 +34,22 @@ export default function LogsPage() {
         </select>
       </section>
 
+      <ShareLogsPanel
+        open={shareOpen}
+        logs={logs}
+        onClose={() => setShareOpen(false)}
+      />
+
       <section className="panel">
-        <h3 style={{ marginBottom: 10 }}>Historical Logs</h3>
+        <div className="panel-title-row logs-title-row">
+          <div>
+            <h3>Historical Logs</h3>
+            <span style={{ color: 'var(--txt-dim)', fontSize: 13 }}>Use Share Logs to export the latest 50 or a custom time range.</span>
+          </div>
+          <button className="btn-primary share-logs-button" type="button" onClick={() => setShareOpen((value) => !value)}>
+            Share Logs
+          </button>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>

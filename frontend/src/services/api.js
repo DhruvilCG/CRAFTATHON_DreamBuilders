@@ -49,6 +49,11 @@ export const fetchStats = async () => {
   return response.data;
 };
 
+export const fetchSignalStatus = async () => {
+  const response = await api.get('/api/signals/status');
+  return response.data;
+};
+
 export const simulateTraffic = async (type) => {
   const response = await api.post('/api/simulate', { type });
   return response.data;
