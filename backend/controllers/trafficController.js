@@ -4,6 +4,22 @@ const { generateTraffic } = require('../services/simulationEngine');
 const { generateRealtimeTraffic } = require('../services/realtimeFeed');
 const { processTraffic } = require('../services/trafficService');
 
+const allowedProtocols = ['TCP', 'UDP', 'ICMP', 'OTHER'];
+const allowedSimulationTypes = ['attack', 'ddos', 'spoofing', 'intrusion', 'normal'];
+
+const isValidTrafficItem = (item) => {
+    if (!item || typeof item !== 'object') return false;
+
+    const source = typeof item.source === 'string' && item.source.trim();
+    const destination = typeof item.destination === 'string' && item.destination.trim();
+    const protocol = allowedProtocols.includes(String(item.protocol || '').toUpperCase());
+    const packetSize = Number.isFinite(Number(item.packetSize));
+    const duration = Number.isFinite(Number(item.duration));
+    const frequency = Number.isFinite(Number(item.frequency ?? 1));
+
+    return Boolean(source && destination && protocol && packetSize && duration && frequency);
+};
+
 // @desc    Get dashboard statistics
 // @route   GET /api/traffic/stats
 // @access  Private
@@ -36,7 +52,43 @@ const getTrafficStats = async (req, res) => {
                     },
                 },
             ]),
-            TrafficLog.aggregate([{ $group: { _id: '$threatCategory', count: { $sum: 1 } } }]),
+                TrafficLog.aggregate([
+                    {
+                        $project: {
+                            normalizedThreatCategory: {
+                                $switch: {
+                                    branches: [
+                                        { case: { $in: ['$threatCategory', ['Jamming', 'Spoofing', 'Intrusion', 'Mixed']] }, then: '$threatCategory' },
+                                        { case: { $eq: ['$attackType', 'DDoS'] }, then: 'Jamming' },
+                                        { case: { $eq: ['$attackType', 'Spoofing'] }, then: 'Spoofing' },
+                                        { case: { $eq: ['$attackType', 'Intrusion'] }, then: 'Intrusion' },
+                                        { case: { $and: [{ $gte: ['$jammingRisk', 65] }, { $gte: ['$spoofingRisk', 65] }] }, then: 'Mixed' },
+                                        { case: { $and: [{ $gte: ['$jammingRisk', 65] }, { $gte: ['$intrusionRisk', 65] }] }, then: 'Mixed' },
+                                        { case: { $and: [{ $gte: ['$spoofingRisk', 65] }, { $gte: ['$intrusionRisk', 65] }] }, then: 'Mixed' },
+                                        {
+                                            case: {
+                                                $and: [
+                                                    { $gte: ['$jammingRisk', '$spoofingRisk'] },
+                                                    { $gte: ['$jammingRisk', '$intrusionRisk'] },
+                                                ],
+                                            },
+                                            then: 'Jamming',
+                                        },
+                                        { case: { $gte: ['$spoofingRisk', '$intrusionRisk'] }, then: 'Spoofing' },
+                                        { case: { $gte: ['$intrusionRisk', 0] }, then: 'Intrusion' },
+                                    ],
+                                    default: 'Intrusion',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        $group: {
+                            _id: '$normalizedThreatCategory',
+                            count: { $sum: 1 },
+                        },
+                    },
+                ]),
             TrafficLog.aggregate([{ $group: { _id: '$datasetSource', count: { $sum: 1 } } }]),
         ]);
 
@@ -250,9 +302,13 @@ const getTraffic = async (req, res) => {
             if (to) query.timestamp.$lte = new Date(to);
         }
 
-        const traffic = await TrafficLog.find(query)
-            .sort({ timestamp: -1 })
-            .limit(Number(limit));
+        let trafficQuery = TrafficLog.find(query).sort({ timestamp: -1 });
+
+        if (String(limit).toLowerCase() !== 'all') {
+            trafficQuery = trafficQuery.limit(Number(limit));
+        }
+
+        const traffic = await trafficQuery;
         res.json(traffic);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -293,6 +349,9 @@ const simulateAttack = async (req, res) => {
         const { type } = req.body; // 'attack' / 'normal' / attack type name
         const attackKinds = ['ddos', 'spoofing', 'intrusion'];
         const normalizedType = String(type || 'attack').toLowerCase();
+        if (!allowedSimulationTypes.includes(normalizedType) && !attackKinds.includes(normalizedType)) {
+            return res.status(400).json({ message: 'Invalid simulation type' });
+        }
         const shouldAttack = normalizedType === 'attack' || attackKinds.includes(normalizedType);
 
         const log = await generateTraffic(shouldAttack, {
@@ -327,6 +386,14 @@ const ingestTraffic = async (req, res) => {
 
         if (!payload.length) {
             return res.status(400).json({ message: 'Request body cannot be empty' });
+        }
+
+        if (payload.length > 50) {
+            return res.status(413).json({ message: 'Too many traffic records in a single request' });
+        }
+
+        if (!payload.every(isValidTrafficItem)) {
+            return res.status(400).json({ message: 'One or more traffic items are invalid' });
         }
 
         const logs = [];
