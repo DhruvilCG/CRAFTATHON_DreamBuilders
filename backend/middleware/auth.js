@@ -3,6 +3,7 @@ const User = require('../models/User');
 
 const protect = async (req, res, next) => {
     let token;
+    const allowMockTokens = process.env.ALLOW_MOCK_TOKENS === 'true' && process.env.NODE_ENV !== 'production';
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
@@ -15,7 +16,7 @@ const protect = async (req, res, next) => {
         token = token.trim();
         
         // Handle mock tokens (from frontend fallback when backend unreachable)
-        if (token.startsWith('mock-token-')) {
+        if (allowMockTokens && token.startsWith('mock-token-')) {
             console.log(`✓ Mock token accepted (frontend fallback): ${token}`);
             const mockUserId = token.replace('mock-token-', '');
             const mockUsers = {
@@ -25,6 +26,10 @@ const protect = async (req, res, next) => {
             };
             req.user = mockUsers[mockUserId] || { _id: mockUserId, role: 'Monitor' };
             return next();
+        }
+
+        if (token.startsWith('mock-token-') && !allowMockTokens) {
+            return res.status(401).json({ message: 'Not authorized, mock tokens are disabled' });
         }
         
         try {

@@ -4,6 +4,22 @@ const { generateTraffic } = require('../services/simulationEngine');
 const { generateRealtimeTraffic } = require('../services/realtimeFeed');
 const { processTraffic } = require('../services/trafficService');
 
+const allowedProtocols = ['TCP', 'UDP', 'ICMP', 'OTHER'];
+const allowedSimulationTypes = ['attack', 'ddos', 'spoofing', 'intrusion', 'normal'];
+
+const isValidTrafficItem = (item) => {
+    if (!item || typeof item !== 'object') return false;
+
+    const source = typeof item.source === 'string' && item.source.trim();
+    const destination = typeof item.destination === 'string' && item.destination.trim();
+    const protocol = allowedProtocols.includes(String(item.protocol || '').toUpperCase());
+    const packetSize = Number.isFinite(Number(item.packetSize));
+    const duration = Number.isFinite(Number(item.duration));
+    const frequency = Number.isFinite(Number(item.frequency ?? 1));
+
+    return Boolean(source && destination && protocol && packetSize && duration && frequency);
+};
+
 // @desc    Get dashboard statistics
 // @route   GET /api/traffic/stats
 // @access  Private
@@ -333,6 +349,9 @@ const simulateAttack = async (req, res) => {
         const { type } = req.body; // 'attack' / 'normal' / attack type name
         const attackKinds = ['ddos', 'spoofing', 'intrusion'];
         const normalizedType = String(type || 'attack').toLowerCase();
+        if (!allowedSimulationTypes.includes(normalizedType) && !attackKinds.includes(normalizedType)) {
+            return res.status(400).json({ message: 'Invalid simulation type' });
+        }
         const shouldAttack = normalizedType === 'attack' || attackKinds.includes(normalizedType);
 
         const log = await generateTraffic(shouldAttack, {
@@ -367,6 +386,14 @@ const ingestTraffic = async (req, res) => {
 
         if (!payload.length) {
             return res.status(400).json({ message: 'Request body cannot be empty' });
+        }
+
+        if (payload.length > 50) {
+            return res.status(413).json({ message: 'Too many traffic records in a single request' });
+        }
+
+        if (!payload.every(isValidTrafficItem)) {
+            return res.status(400).json({ message: 'One or more traffic items are invalid' });
         }
 
         const logs = [];
