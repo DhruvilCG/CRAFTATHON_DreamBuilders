@@ -5,10 +5,11 @@ import { useAuth } from '../context/AuthContext.jsx';
 export default function Login() {
   const [email, setEmail] = useState('admin@mil.local');
   const [password, setPassword] = useState('admin123');
+  const [mfaCode, setMfaCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, completeMfaLogin, mfaChallenge } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
@@ -16,7 +17,19 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      if (mfaChallenge?.mfaToken) {
+        await completeMfaLogin(mfaCode);
+        navigate('/dashboard');
+        return;
+      }
+
+      const response = await login(email, password);
+      if (response?.mfaRequired) {
+        setError('Enter the MFA code from your authenticator app.');
+        setMfaCode('');
+        return;
+      }
+
       navigate('/dashboard');
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Authentication failed');
@@ -99,6 +112,23 @@ export default function Login() {
             </div>
           </div>
 
+          {mfaChallenge?.mfaToken ? (
+            <div className="form-group">
+              <label htmlFor="mfaCode">MFA Code</label>
+              <input
+                id="mfaCode"
+                className="input"
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter 6-digit code"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                maxLength={6}
+                required
+              />
+            </div>
+          ) : null}
+
           {error && (
             <div className="alert alert-error">
               <span>{error}</span>
@@ -113,10 +143,10 @@ export default function Login() {
             {loading ? (
               <>
                 <span className="spinner"></span>
-                Authenticating...
+                {mfaChallenge?.mfaToken ? 'Verifying Code...' : 'Authenticating...'}
               </>
             ) : (
-              'Sign In'
+              mfaChallenge?.mfaToken ? 'Verify MFA' : 'Sign In'
             )}
           </button>
         </form>

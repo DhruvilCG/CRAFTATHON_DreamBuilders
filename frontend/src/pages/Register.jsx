@@ -11,6 +11,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('Monitor');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -20,6 +21,7 @@ export default function Register() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setInfo('');
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -28,8 +30,13 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register({ name, email, password, role });
-      navigate('/dashboard');
+      const response = await register({ name, email, password, role });
+      if (response?.pendingApproval) {
+        setInfo('Registration submitted. Please wait for Admin approval before logging in.');
+        setTimeout(() => navigate('/login'), 1800);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Registration failed');
     } finally {
@@ -108,9 +115,10 @@ export default function Register() {
                 id="password"
                 className="input"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Min. 8 characters"
+                placeholder="Min. 10 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                minLength={10}
                 required
               />
               <button
@@ -134,6 +142,7 @@ export default function Register() {
                 placeholder="Repeat password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={10}
                 required
               />
               <button
@@ -164,6 +173,12 @@ export default function Register() {
           {error && (
             <div className="alert alert-error">
               <span>{error}</span>
+            </div>
+          )}
+
+          {info && (
+            <div className="alert alert-info">
+              <span>{info}</span>
             </div>
           )}
 
