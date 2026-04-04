@@ -36,7 +36,43 @@ const getTrafficStats = async (req, res) => {
                     },
                 },
             ]),
-            TrafficLog.aggregate([{ $group: { _id: '$threatCategory', count: { $sum: 1 } } }]),
+                TrafficLog.aggregate([
+                    {
+                        $project: {
+                            normalizedThreatCategory: {
+                                $switch: {
+                                    branches: [
+                                        { case: { $in: ['$threatCategory', ['Jamming', 'Spoofing', 'Intrusion', 'Mixed']] }, then: '$threatCategory' },
+                                        { case: { $eq: ['$attackType', 'DDoS'] }, then: 'Jamming' },
+                                        { case: { $eq: ['$attackType', 'Spoofing'] }, then: 'Spoofing' },
+                                        { case: { $eq: ['$attackType', 'Intrusion'] }, then: 'Intrusion' },
+                                        { case: { $and: [{ $gte: ['$jammingRisk', 65] }, { $gte: ['$spoofingRisk', 65] }] }, then: 'Mixed' },
+                                        { case: { $and: [{ $gte: ['$jammingRisk', 65] }, { $gte: ['$intrusionRisk', 65] }] }, then: 'Mixed' },
+                                        { case: { $and: [{ $gte: ['$spoofingRisk', 65] }, { $gte: ['$intrusionRisk', 65] }] }, then: 'Mixed' },
+                                        {
+                                            case: {
+                                                $and: [
+                                                    { $gte: ['$jammingRisk', '$spoofingRisk'] },
+                                                    { $gte: ['$jammingRisk', '$intrusionRisk'] },
+                                                ],
+                                            },
+                                            then: 'Jamming',
+                                        },
+                                        { case: { $gte: ['$spoofingRisk', '$intrusionRisk'] }, then: 'Spoofing' },
+                                        { case: { $gte: ['$intrusionRisk', 0] }, then: 'Intrusion' },
+                                    ],
+                                    default: 'Intrusion',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        $group: {
+                            _id: '$normalizedThreatCategory',
+                            count: { $sum: 1 },
+                        },
+                    },
+                ]),
             TrafficLog.aggregate([{ $group: { _id: '$datasetSource', count: { $sum: 1 } } }]),
         ]);
 
@@ -250,9 +286,13 @@ const getTraffic = async (req, res) => {
             if (to) query.timestamp.$lte = new Date(to);
         }
 
-        const traffic = await TrafficLog.find(query)
-            .sort({ timestamp: -1 })
-            .limit(Number(limit));
+        let trafficQuery = TrafficLog.find(query).sort({ timestamp: -1 });
+
+        if (String(limit).toLowerCase() !== 'all') {
+            trafficQuery = trafficQuery.limit(Number(limit));
+        }
+
+        const traffic = await trafficQuery;
         res.json(traffic);
     } catch (error) {
         res.status(500).json({ message: error.message });
