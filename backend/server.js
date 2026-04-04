@@ -14,10 +14,27 @@ if (!process.env.JWT_SECRET) {
     console.log('✓ JWT_SECRET loaded from environment');
 }
 
+if (!process.env.JWT_REFRESH_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+        console.error('JWT_REFRESH_SECRET is required in production');
+        process.exit(1);
+    }
+    process.env.JWT_REFRESH_SECRET = `${process.env.JWT_SECRET || 'supersecretkey'}-refresh`;
+}
+
+if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_IP_ALLOWLIST) {
+    console.warn('ADMIN_IP_ALLOWLIST is not set. Admin route lockout will deny requests in production until configured.');
+}
+
 // Connect to Database
 connectDB();
 
 const PORT = process.env.PORT || 5000;
+const ioOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+const isLocalDevOrigin = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
 const server = app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
@@ -26,11 +43,25 @@ const server = app.listen(PORT, () => {
 // Setup Socket.io for Real-time events
 const io = new Server(server, {
     cors: {
-        origin: '*', // Adjust this for production
+        origin(origin, callback) {
+            if (!origin || ioOrigins.includes(origin) || (process.env.NODE_ENV !== 'production' && isLocalDevOrigin(origin))) {
+                return callback(null, true);
+            }
+
+            return callback(new Error('CORS blocked for this origin'));
+        },
+        methods: ['GET', 'POST'],
+        credentials: true,
     }
 });
 
 io.on('connection', (socket) => {
+    const origin = socket.handshake.headers.origin;
+    if (origin && !ioOrigins.includes(origin) && !(process.env.NODE_ENV !== 'production' && isLocalDevOrigin(origin))) {
+        socket.disconnect(true);
+        return;
+    }
+
     console.log(`New WebSocket connection: ${socket.id}`);
     
     socket.on('disconnect', () => {
